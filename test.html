@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Диагностика GitHub Pages</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; line-height: 1.6; padding: 20px; max-width: 800px; margin: auto; background-color: #f6f8fa; }
+        h1, h2 { border-bottom: 2px solid #eaecef; padding-bottom: 0.3em; }
+        .card { background-color: white; border: 1px solid #d1d5da; border-radius: 6px; padding: 16px; margin-bottom: 16px; }
+        .status { font-weight: bold; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+        .success { color: #22863a; background-color: #e6ffed; }
+        .error { color: #cb2431; background-color: #ffeef0; }
+        .info { color: #0366d6; background-color: #f1f8ff; }
+        code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; background-color: rgba(27,31,35,0.05); padding: .2em .4em; margin: 0; font-size: 85%; border-radius: 3px; }
+        ul { padding-left: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1><span class="info">⚙️</span> Диагностика конфигурации GitHub Pages</h1>
+
+    <div class="card">
+        <h2>1. Проверка работы GitHub Pages</h2>
+        <p>✅ <span class="success">Если вы видите эту страницу, значит, ваш репозиторий успешно опубликован через GitHub Pages.</span></p>
+        <p>Текущий URL: <code id="current-url">Загрузка...</code></p>
+    </div>
+
+    <div class="card">
+        <h2>2. Проверка доступности файлов</h2>
+        <p>Этот тест пытается загрузить ваши основные HTML-файлы, чтобы проверить, видит ли их сервер.</p>
+        <ul>
+            <li>Проверка <code>index.html</code>: <span id="index-status" class="status info">...</span></li>
+            <li>Проверка <code>admin.html</code>: <span id="admin-status" class="status info">...</span></li>
+        </ul>
+    </div>
+    
+    <div class="card">
+        <h2>3. Проверка подключения к Firebase</h2>
+        <p>Этот тест проверяет, может ли браузер загрузить основной скрипт Firebase. Это не проверяет подключение к вашей базе, только доступность самого сервиса.</p>
+        <ul>
+            <li>Загрузка Firebase SDK: <span id="firebase-status" class="status info">...</span></li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>4. Что означают эти результаты?</h2>
+        
+        <h4>➡️ Если эта страница (test.html) вообще не загрузилась (вы видите стандартную 404 ошибку от GitHub):</h4>
+        <ul>
+            <li>Проблема в настройках репозитория. Зайдите в <code>Settings -> Pages</code>.</li>
+            <li>Убедитесь, что выбран правильный источник (<code>Deploy from a branch</code>) и правильная ветка (<code>main</code> или <code>master</code>) и папка (<code>/(root)</code>).</li>
+            <li>Проверьте, что репозиторий **публичный**. На бесплатном тарифе Pages для приватных репозиториев не работают.</li>
+        </ul>
+
+        <h4>➡️ Если <code>index.html</code> показывает <span class="error">НЕ НАЙДЕН (404)</span>:</h4>
+        <ul>
+            <li>Самая частая причина: **опечатка в имени файла**. Проверьте регистр: <code>index.html</code>, а не <code>Index.html</code>.</li>
+            <li>Убедитесь, что файл <code>index.html</code> находится **в корневой папке** вашего репозитория, а не в подпапке.</li>
+            <li>Возможно, изменения еще не применились. Подождите 1-2 минуты и обновите страницу.</li>
+        </ul>
+        
+        <h4>➡️ Если все файлы <span class="success">НАЙДЕНЫ</span>, но <code>index.html</code> все равно показывает белый экран:</h4>
+        <ul>
+            <li>Это подтверждает, что **ошибки 404 нет**. Проблема не в конфигурации GitHub, а **внутри вашего JavaScript-кода** в файле <code>index.html</code>.</li>
+            <li>Наиболее вероятная причина: ваш скрипт не может получить критически важные данные из Firestore (например, документ `site_content/main` или `settings/about`), из-за чего выполнение прерывается до того, как страница станет видимой.</li>
+            <li>Откройте `index.html` на GitHub Pages и посмотрите в консоль разработчика (F12) — там будет красная ошибка, которая укажет на проблему.</li>
+        </ul>
+    </div>
+
+    <script>
+        // Показываем текущий URL
+        document.getElementById('current-url').textContent = window.location.href;
+
+        // Функция для проверки файла
+        async function checkFile(url, elementId) {
+            const statusElement = document.getElementById(elementId);
+            try {
+                const response = await fetch(url, { cache: "no-store" }); // no-store чтобы избежать кэша
+                if (response.ok) {
+                    statusElement.textContent = `НАЙДЕН (${response.status})`;
+                    statusElement.className = 'status success';
+                } else {
+                    statusElement.textContent = `НЕ НАЙДЕН (${response.status})`;
+                    statusElement.className = 'status error';
+                }
+            } catch (error) {
+                statusElement.textContent = `ОШИБКА СЕТИ`;
+                statusElement.className = 'status error';
+                console.error(`Error fetching ${url}:`, error);
+            }
+        }
+        
+        // Функция для проверки загрузки скрипта
+        function checkScript(url, elementId) {
+            const statusElement = document.getElementById(elementId);
+            const script = document.createElement('script');
+            script.src = url;
+            script.onload = function() {
+                statusElement.textContent = 'УСПЕШНО ЗАГРУЖЕН';
+                statusElement.className = 'status success';
+            };
+            script.onerror = function() {
+                statusElement.textContent = 'НЕ УДАЛОСЬ ЗАГРУЗИТЬ';
+                statusElement.className = 'status error';
+            };
+            document.head.appendChild(script);
+        }
+
+        // Запускаем проверки
+        checkFile('index.html', 'index-status');
+        checkFile('admin.html', 'admin-status');
+        checkScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js', 'firebase-status');
+    </script>
+
+</body>
+</html>
