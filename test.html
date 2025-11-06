@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Firebase Security Rules Test</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: auto; color: #333; }
+        h1, h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .test-container { border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 8px; }
+        button { font-size: 16px; padding: 10px 15px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background-color: #f0f0f0; }
+        #results { margin-top: 20px; padding: 15px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; }
+        .secure { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .insecure { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; font-weight: bold; }
+        code { background: #eee; padding: 2px 5px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <h1>Тест Правил Безопасности Firebase</h1>
+    <p>Эта страница проверяет, защищена ли ваша база данных Firestore от несанкционированного доступа. Нажмите кнопки ниже, чтобы запустить тесты.</p>
+
+    <div class="test-container">
+        <h2>Тест #1: Чтение данных без авторизации</h2>
+        <p>Этот тест пытается прочитать один документ из коллекции <code>rooms</code>. В защищенной среде этот тест должен <strong>провалиться</strong>.</p>
+        <button onclick="testRead()">Запустить тест чтения</button>
+    </div>
+
+    <div class="test-container">
+        <h2>Тест #2: Запись данных без авторизации</h2>
+        <p>Этот тест пытается создать новый документ в тестовой коллекции <code>unauthorized_test_writes</code>. В защищенной среде этот тест должен <strong>провалиться</strong>.</p>
+        <button onclick="testWrite()">Запустить тест записи</button>
+    </div>
+
+    <h2>Результаты:</h2>
+    <div id="results">Ожидание тестов...</div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // ВАША КОНФИГУРАЦИЯ FIREBASE (взята из вашего файла)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCZZ7kICCJMcWAjW5bnf_-vsH2s-KoZrSs",
+            authDomain: "tbil-home.firebaseapp.com",
+            projectId: "tbil-home",
+            storageBucket: "tbil-home.firebasestorage.app",
+            messagingSenderId: "849747940427",
+            appId: "1:849747940427:web:bd3744d816a25e62c7e9ce",
+            measurementId: "G-7YWSRMGV33"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const resultsDiv = document.getElementById('results');
+
+        async function testRead() {
+            resultsDiv.textContent = 'Выполняется тест чтения...';
+            resultsDiv.className = '';
+            try {
+                await db.collection('rooms').limit(1).get();
+                resultsDiv.className = 'insecure';
+                resultsDiv.textContent = 'РЕЗУЛЬТАТ: УСПЕХ (ЭТО ПЛОХО!)\n\nВаша база данных открыта для чтения кем угодно. Любой может прочитать данные о ваших номерах и, возможно, другие коллекции. Срочно обновите правила безопасности!';
+            } catch (error) {
+                if (error.code === 'permission-denied') {
+                    resultsDiv.className = 'secure';
+                    resultsDiv.textContent = 'РЕЗУЛЬТАТ: ОШИБКА ДОСТУПА (ЭТО ХОРОШО!)\n\nВаша база данных защищена от несанкционированного чтения. Это правильное поведение.';
+                } else {
+                    resultsDiv.className = 'insecure';
+                    resultsDiv.textContent = `Произошла неожиданная ошибка: ${error.message}`;
+                }
+            }
+        }
+
+        async function testWrite() {
+            resultsDiv.textContent = 'Выполняется тест записи...';
+            resultsDiv.className = '';
+            try {
+                await db.collection('unauthorized_test_writes').add({ test: 'data', timestamp: new Date() });
+                resultsDiv.className = 'insecure';
+                resultsDiv.textContent = 'РЕЗУЛЬТАТ: УСПЕХ (ЭТО ОЧЕНЬ ПЛОХО!)\n\nВаша база данных открыта для записи кем угодно. Любой может создавать, изменять и удалять данные. Это критическая уязвимость, которую нужно исправить немедленно!';
+            } catch (error) {
+                if (error.code === 'permission-denied') {
+                    resultsDiv.className = 'secure';
+                    resultsDiv.textContent = 'РЕЗУЛЬТАТ: ОШИБКА ДОСТУПА (ЭТО ХОРОШО!)\n\nВаша база данных защищена от несанкционированной записи. Это правильное поведение.';
+                } else {
+                    resultsDiv.className = 'insecure';
+                    resultsDiv.textContent = `Произошла неожиданная ошибка: ${error.message}`;
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>
